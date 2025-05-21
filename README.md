@@ -1,8 +1,6 @@
 # lua-src
-[![Build Status]][github-actions]
 
-[Build Status]: https://github.com/mlua-rs/lua-src-rs/workflows/CI/badge.svg
-[github-actions]: https://github.com/mlua-rs/lua-src-rs/actions
+This is a patched verison of [lua-src-rs](https://github.com/mlua-rs/lua-src-rs) which enables `-pthread` in emscripten builds.
 
 This crate contains the sources of Lua 5.1/5.2/5.3/5.4 and logic to build them.
 Intended to be consumed by the [mlua-sys] crate.

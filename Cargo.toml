@@ -1,6 +1,6 @@
 [package]
 name = "lua-src"
-version = "547.1.0"
+version = "547.0.0"
 authors = ["Aleksandr Orlenko <zxteam@protonmail.com>"]
 edition = "2021"
 repository = "https://github.com/mlua-rs/lua-src-rs"
@@ -18,4 +18,4 @@ ucid = [] # accept UniCode IDentifiers
 members = ["testcrate"]
 
 [dependencies]
-cc = "1.2"
+cc = "1.0"
