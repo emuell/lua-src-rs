@@ -156,8 +156,9 @@ impl Build {
             _ if target.ends_with("emscripten") => {
                 config
                     .define("LUA_USE_POSIX", None)
+                    .define("LUA_USE_LONGJMP", None)
                     .cpp(true)
-                    .flag("-fexceptions") // Enable exceptions support
+                    .flag("-fwasm-exceptions") // Enable wasm exceptions support
                     .flag("-pthread"); // Enable shared worker support
 
                 let cpp_source_dir = out_dir.join("cpp_source");
