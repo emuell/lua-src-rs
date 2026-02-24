@@ -10,6 +10,7 @@ pub enum Version {
     Lua52,
     Lua53,
     Lua54,
+    Lua55,
 }
 pub use self::Version::*;
 
@@ -130,6 +131,7 @@ impl Build {
             }
         }
 
+        let mut libs = vec![version.lib_name().to_string()];
         match target {
             _ if target.contains("linux") => {
                 config.define("LUA_USE_LINUX", None);
@@ -145,7 +147,7 @@ impl Build {
             }
             _ if target.contains("apple-ios") => {
                 match version {
-                    Lua54 => config.define("LUA_USE_IOS", None),
+                    Lua54 | Lua55 => config.define("LUA_USE_IOS", None),
                     _ => config.define("LUA_USE_POSIX", None),
                 };
             }
@@ -189,12 +191,33 @@ impl Build {
                 }
                 source_dir = cpp_source_dir
             }
+            _ if target.contains("wasi") => {
+                // WASI is posix-like, but further patches are needed to the Lua
+                // source to get it compiling.
+                config.define("LUA_USE_POSIX", None);
+
+                // Bring in just enough signal-handling support to get Lua at
+                // least compiling, but WASI in general does not support
+                // signals.
+                config.define("_WASI_EMULATED_SIGNAL", None);
+                libs.push("wasi-emulated-signal".to_string());
+
+                // https://github.com/WebAssembly/wasi-sdk/blob/main/SetjmpLongjmp.md
+                // for information about getting setjmp/longjmp working.
+                config.flag("-mllvm").flag("-wasm-enable-eh");
+                config.flag("-mllvm").flag("-wasm-use-legacy-eh=false");
+                config.flag("-mllvm").flag("-wasm-enable-sjlj");
+                libs.push("setjmp".to_string());
+            }
             _ => Err(format!("don't know how to build Lua for {target}"))?,
         }
 
         if let Lua54 = version {
             config.define("LUA_COMPAT_5_3", None);
-            #[cfg(feature = "ucid")]
+        }
+
+        #[cfg(feature = "ucid")]
+        if let Lua54 | Lua55 = version {
             config.define("LUA_UCID", None);
         }
 
@@ -218,7 +241,7 @@ impl Build {
 
         config
             .include(&source_dir)
-            .flag("-w") // Suppress all warnings
+            .warnings(false) // Suppress all warnings
             .flag_if_supported("-fno-common") // Compile common globals like normal definitions
             .add_files_by_ext(&source_dir, "c")?
             .out_dir(&lib_dir)
@@ -234,27 +257,29 @@ impl Build {
         Ok(Artifacts {
             include_dir,
             lib_dir,
-            libs: vec![version.lib_name().to_string()],
+            libs,
         })
     }
 }
 
 impl Version {
-    fn source_dir(&self) -> &str {
+    fn source_dir(&self) -> &'static str {
         match self {
             Lua51 => "lua-5.1.5",
             Lua52 => "lua-5.2.4",
             Lua53 => "lua-5.3.6",
             Lua54 => "lua-5.4.8",
+            Lua55 => "lua-5.5.0",
         }
     }
 
-    fn lib_name(&self) -> &str {
+    fn lib_name(&self) -> &'static str {
         match self {
             Lua51 => "lua5.1",
             Lua52 => "lua5.2",
             Lua53 => "lua5.3",
             Lua54 => "lua5.4",
+            Lua55 => "lua5.5",
         }
     }
 }
@@ -282,7 +307,7 @@ impl Artifacts {
     pub fn print_cargo_metadata(&self) {
         println!("cargo:rustc-link-search=native={}", self.lib_dir.display());
         for lib in self.libs.iter() {
-            println!("cargo:rustc-link-lib=static={lib}");
+            println!("cargo:rustc-link-lib=static:-bundle={lib}");
         }
     }
 }
